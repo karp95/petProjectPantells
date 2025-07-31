@@ -30,7 +30,7 @@ func main() {
 }
 
 func GetTask(e echo.Context) error {
-	return e.JSON(http.StatusOK, task)
+	return e.JSON(http.StatusOK, "Hello "+task.Task)
 }
 
 func UpdateTask(e echo.Context) error {
