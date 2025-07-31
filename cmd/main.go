@@ -5,14 +5,15 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"net/http"
+	"strings"
 )
 
 type RequestBody struct {
 	Task string `json:"task"`
 }
 
-var task = RequestBody{
-	Task: "Изначальное",
+var taskList = []RequestBody{
+	{Task: "Start"},
 }
 
 func main() {
@@ -29,20 +30,23 @@ func main() {
 	}
 }
 
-func GetTask(e echo.Context) error {
-	return e.JSON(http.StatusOK, "Hello "+task.Task)
+func GetTask(c echo.Context) error {
+	var tasks []string
+	for _, t := range taskList {
+		tasks = append(tasks, t.Task)
+	}
+	return c.String(http.StatusOK, "Hello "+strings.Join(tasks, ", "))
 }
 
-func UpdateTask(e echo.Context) error {
+func UpdateTask(c echo.Context) error {
 	var req RequestBody
-	if err := json.NewDecoder(e.Request().Body).Decode(&req); err != nil {
-		return e.JSON(http.StatusBadRequest, map[string]string{
+	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "invalid request body",
 		})
 	}
-	task = req
-	return e.JSON(http.StatusOK, map[string]string{
-		"status": "task updated",
+	taskList = append(taskList, req)
+	return c.JSON(http.StatusOK, map[string]string{
+		"status": "task added",
 	})
-
 }
