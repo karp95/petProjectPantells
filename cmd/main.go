@@ -14,6 +14,11 @@ type Task struct {
 	Status string `json:"status"`
 }
 
+type CreateTaskRequest struct {
+	Task   string `json:"task" validate:"required"`
+	Status string `json:"status" validate:"required"`
+}
+
 var taskList = []Task{
 	{Task: "Start", Status: "Running", ID: uuid.NewString()},
 	{Task: "Stop", Status: "Done", ID: uuid.NewString()},
@@ -23,7 +28,6 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
-
 	e.GET("/tasks", GetTask)
 	e.POST("/tasks", AddTask)
 	e.DELETE("/tasks/:id", DeleteTask)
@@ -31,7 +35,7 @@ func main() {
 
 	err := e.Start("localhost:8080")
 	if err != nil {
-		return
+		panic("failed to start server")
 	}
 }
 
@@ -40,62 +44,64 @@ func GetTask(c echo.Context) error {
 }
 
 func AddTask(c echo.Context) error {
-	var req Task
-	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "invalid request body",
+	var task CreateTaskRequest
+
+	decoder := json.NewDecoder(c.Request().Body)
+	decoder.DisallowUnknownFields()
+
+	err := decoder.Decode(&task)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{
+			"error": "Invalid request body: " + err.Error(),
 		})
 	}
-	req.ID = uuid.NewString()
-	taskList = append(taskList, req)
-	return c.JSON(http.StatusOK, req)
+
+	newTask := Task{
+		ID:     uuid.NewString(),
+		Task:   task.Task,
+		Status: task.Status,
+	}
+	taskList = append(taskList, newTask)
+
+	return c.JSON(http.StatusCreated, newTask)
 }
 
 func DeleteTask(c echo.Context) error {
-	id := c.Param("id")
+	urlId := c.Param("id")
 
-	for i, t := range taskList {
-		if t.ID == id {
+	for i, task := range taskList {
+		if task.ID == urlId {
 			taskList = append(taskList[:i], taskList[i+1:]...)
 			return c.NoContent(http.StatusNoContent)
 		}
 	}
-
-	return c.JSON(http.StatusNotFound, map[string]string{
-		"error": "task not found",
-	})
+	return echo.NewHTTPError(http.StatusNotFound, "Task not found")
 }
 
 func PatchTask(c echo.Context) error {
-	id := c.Param("id")
+	UrlId := c.Param("id")
 
-	var updateData struct {
-		ID     *string `json:"id"`
+	var TaskUpdate struct {
 		Task   *string `json:"task"`
 		Status *string `json:"status"`
 	}
 
-	if err := c.Bind(&updateData); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
+	if err := c.Bind(&TaskUpdate); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{
 			"error": "invalid request body",
 		})
 	}
-	for i, t := range taskList {
-		if t.ID == id {
-			if updateData.ID != nil {
-				taskList[i].ID = *updateData.ID
+	for i, task := range taskList {
+		if task.ID == UrlId {
+			if TaskUpdate.Task != nil {
+				taskList[i].Task = *TaskUpdate.Task
 			}
-			if updateData.Task != nil {
-				taskList[i].Task = *updateData.Task
-			}
-			if updateData.Status != nil {
-				taskList[i].Status = *updateData.Status
+			if TaskUpdate.Status != nil {
+				taskList[i].Status = *TaskUpdate.Status
 			}
 
 			return c.JSON(http.StatusOK, taskList[i])
 		}
 	}
-	return c.JSON(http.StatusBadRequest, map[string]string{
-		"error": "task not found",
-	})
+	return echo.NewHTTPError(http.StatusNotFound, "Task not found")
 }
