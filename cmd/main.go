@@ -5,7 +5,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"net/http"
-	"strings"
 )
 
 type RequestBody struct {
@@ -21,8 +20,8 @@ func main() {
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
 
-	e.GET("/task", GetTask)
-	e.POST("/update", UpdateTask)
+	e.GET("/tasks", GetTask)
+	e.POST("/tasks", UpdateTask)
 
 	err := e.Start("localhost:8080")
 	if err != nil {
@@ -31,11 +30,7 @@ func main() {
 }
 
 func GetTask(c echo.Context) error {
-	var tasks []string
-	for _, t := range taskList {
-		tasks = append(tasks, t.Task)
-	}
-	return c.String(http.StatusOK, "Hello "+strings.Join(tasks, ", "))
+	return c.JSON(http.StatusOK, taskList)
 }
 
 func UpdateTask(c echo.Context) error {
