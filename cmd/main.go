@@ -41,7 +41,5 @@ func UpdateTask(c echo.Context) error {
 		})
 	}
 	taskList = append(taskList, req)
-	return c.JSON(http.StatusOK, map[string]string{
-		"status": "task added",
-	})
+	return c.JSON(http.StatusOK, req)
 }
