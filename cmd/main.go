@@ -86,7 +86,14 @@ func AddTask(c echo.Context) error {
 		Task:   task.Task,
 		Status: task.Status,
 	}
-	db.Create(&newTask)
+
+	err = db.Create(&newTask).Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{
+			"error": "Could not add task",
+		})
+	}
+
 	return c.JSON(http.StatusCreated, newTask)
 }
 
