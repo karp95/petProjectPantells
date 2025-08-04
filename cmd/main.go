@@ -5,11 +5,30 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"log"
 	"net/http"
 )
 
+var db *gorm.DB
+
+func initDb() {
+	dsn := "host=localhost user=postgres password=my_pass dbname=postgres port=5432 sslmode=disable"
+	var err error
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database", err.Error())
+	}
+
+	err = db.AutoMigrate(&Task{})
+	if err != nil {
+		log.Fatal("Failed to migrate database", err.Error())
+	}
+}
+
 type Task struct {
-	ID     string `json:"id"`
+	ID     string `json:"id" gorm:"primaryKey"`
 	Task   string `json:"task"`
 	Status string `json:"status"`
 }
@@ -19,15 +38,13 @@ type CreateTaskRequest struct {
 	Status string `json:"status" validate:"required"`
 }
 
-var taskList = []Task{
-	{Task: "Start", Status: "Running", ID: uuid.NewString()},
-	{Task: "Stop", Status: "Done", ID: uuid.NewString()},
-}
-
 func main() {
+	initDb()
+
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
+
 	e.GET("/tasks", GetTask)
 	e.POST("/tasks", AddTask)
 	e.DELETE("/tasks/:id", DeleteTask)
@@ -35,12 +52,20 @@ func main() {
 
 	err := e.Start("localhost:8080")
 	if err != nil {
-		panic("failed to start server")
+		log.Fatal("Failed to start server", err.Error())
 	}
 }
 
 func GetTask(c echo.Context) error {
-	return c.JSON(http.StatusOK, taskList)
+	var task []Task
+
+	err := db.Find(&task).Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{
+			"error": "Could not get task",
+		})
+	}
+	return c.JSON(http.StatusOK, task)
 }
 
 func AddTask(c echo.Context) error {
@@ -61,25 +86,23 @@ func AddTask(c echo.Context) error {
 		Task:   task.Task,
 		Status: task.Status,
 	}
-	taskList = append(taskList, newTask)
-
+	db.Create(&newTask)
 	return c.JSON(http.StatusCreated, newTask)
 }
 
 func DeleteTask(c echo.Context) error {
 	urlId := c.Param("id")
-
-	for i, task := range taskList {
-		if task.ID == urlId {
-			taskList = append(taskList[:i], taskList[i+1:]...)
-			return c.NoContent(http.StatusNoContent)
-		}
+	err := db.Where("id = ?", urlId).Delete(&Task{}).Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{
+			"error": "Could not delete task",
+		})
 	}
-	return echo.NewHTTPError(http.StatusNotFound, "Task not found")
+	return echo.NewHTTPError(http.StatusNoContent)
 }
 
 func PatchTask(c echo.Context) error {
-	UrlId := c.Param("id")
+	urlId := c.Param("id")
 
 	var TaskUpdate struct {
 		Task   *string `json:"task"`
@@ -91,17 +114,11 @@ func PatchTask(c echo.Context) error {
 			"error": "invalid request body",
 		})
 	}
-	for i, task := range taskList {
-		if task.ID == UrlId {
-			if TaskUpdate.Task != nil {
-				taskList[i].Task = *TaskUpdate.Task
-			}
-			if TaskUpdate.Status != nil {
-				taskList[i].Status = *TaskUpdate.Status
-			}
-
-			return c.JSON(http.StatusOK, taskList[i])
-		}
+	err := db.Model(&Task{}).Where("id = ?", urlId).Updates(&TaskUpdate).Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{
+			"error": "update failed",
+		})
 	}
-	return echo.NewHTTPError(http.StatusNotFound, "Task not found")
+	return echo.NewHTTPError(http.StatusOK, TaskUpdate)
 }
