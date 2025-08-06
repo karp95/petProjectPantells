@@ -17,13 +17,13 @@ func main() {
 
 	repo := taskservice.NewTaskRepository(database)
 	service := taskservice.NewTaskService(repo)
-	handlers := handlers.NewTaskHandler(service)
+	hand := handlers.NewTaskHandler(service)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
 
-	handlers.RegisterRoutes(e)
+	hand.RegisterRoutes(e)
 
 	if err := e.Start(":8080"); err != nil {
 		log.Fatal("Server failed:", err)
