@@ -11,10 +11,16 @@ import (
 )
 
 func main() {
-	database.InitDb()
-	database.Db.AutoMigrate(&taskservice.Task{})
+	db, err := database.InitDb()
+	if err != nil {
+		return
+	}
+	err = database.Db.AutoMigrate(&taskservice.Task{})
+	if err != nil {
+		return
+	}
 
-	repo := taskservice.NewTaskRepository(database.Db)
+	repo := taskservice.NewTaskRepository(db)
 	service := taskservice.NewTaskService(repo)
 	hand := handlers.NewTaskHandler(service)
 
