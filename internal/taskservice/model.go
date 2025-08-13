@@ -1,12 +1,12 @@
 package taskservice
 
 type Task struct {
-	ID     string `json:"id" gorm:"primaryKey"`
+	ID     uint   `json:"id" gorm:"primaryKey"`
 	Task   string `json:"task"`
-	Status string `json:"status"`
+	IsDone bool   `json:"is_done"`
 }
 
 type CreateTaskRequest struct {
 	Task   string `json:"task" validate:"required"`
-	Status string `json:"status" validate:"required"`
+	IsDone bool   `json:"is_done"`
 }

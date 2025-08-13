@@ -1,8 +1,11 @@
 package taskservice
 
 import (
+	"errors"
 	"gorm.io/gorm"
 )
+
+var ErrNotFound = errors.New("record not found")
 
 type TaskRepository interface {
 	GetAll() ([]Task, error)

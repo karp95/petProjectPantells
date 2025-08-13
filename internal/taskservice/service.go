@@ -1,9 +1,5 @@
 package taskservice
 
-import (
-	"github.com/google/uuid"
-)
-
 type TaskService interface {
 	GetTasks() ([]Task, error)
 	AddTask(req CreateTaskRequest) (Task, error)
@@ -26,9 +22,8 @@ func (service *taskService) GetTasks() ([]Task, error) {
 
 func (service *taskService) AddTask(req CreateTaskRequest) (Task, error) {
 	task := Task{
-		ID:     uuid.NewString(),
 		Task:   req.Task,
-		Status: req.Status,
+		IsDone: req.IsDone,
 	}
 	err := service.repo.Create(&task)
 	return task, err
